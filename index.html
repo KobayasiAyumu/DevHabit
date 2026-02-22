@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DevHabit Dashboard - コーディング習慣を可視化</title>
+  <meta name="description" content="エンジニアのコーディング習慣を可視化し、継続的な成長を支援するダッシュボード">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- ローディングスクリーン -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-content">
+      <div class="loading-icon">
+        <svg viewBox="0 0 60 60" class="loading-svg">
+          <circle cx="30" cy="30" r="25" class="loading-circle" />
+        </svg>
+      </div>
+      <h2 class="loading-title">DevHabit</h2>
+      <p class="loading-subtitle">データを読み込み中...</p>
+    </div>
+  </div>
+
+  <!-- ヘッダー -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <i data-lucide="terminal" class="logo-icon"></i>
+        <h1 class="logo-text">Dev<span class="logo-accent">Habit</span></h1>
+      </div>
+      <span class="header-badge">Dashboard</span>
+    </div>
+    <div class="header-right">
+      <div class="demo-badge" id="demo-badge">
+        <i data-lucide="sparkles"></i>
+        <span>デモモード</span>
+      </div>
+      <button class="btn btn-ghost" id="btn-settings" title="API設定">
+        <i data-lucide="settings"></i>
+      </button>
+      <button class="btn btn-ghost" id="btn-theme" title="テーマ切替">
+        <i data-lucide="moon"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- メインコンテンツ -->
+  <main class="main">
+    <!-- サマリーカード -->
+    <section class="summary-section">
+      <div class="summary-card" id="summary-streak">
+        <div class="summary-icon-wrap gradient-fire">
+          <i data-lucide="flame"></i>
+        </div>
+        <div class="summary-info">
+          <span class="summary-value" data-count="0">0</span>
+          <span class="summary-label">連続コミット日数</span>
+        </div>
+      </div>
+      <div class="summary-card" id="summary-commits">
+        <div class="summary-icon-wrap gradient-ocean">
+          <i data-lucide="git-commit-horizontal"></i>
+        </div>
+        <div class="summary-info">
+          <span class="summary-value" data-count="0">0</span>
+          <span class="summary-label">今週のコミット</span>
+        </div>
+      </div>
+      <div class="summary-card" id="summary-hours">
+        <div class="summary-icon-wrap gradient-emerald">
+          <i data-lucide="clock"></i>
+        </div>
+        <div class="summary-info">
+          <span class="summary-value" data-count="0">0</span>
+          <span class="summary-unit">h</span>
+          <span class="summary-label">今週のコーディング時間</span>
+        </div>
+      </div>
+      <div class="summary-card" id="summary-energy">
+        <div class="summary-icon-wrap gradient-sunset">
+          <i data-lucide="battery-charging"></i>
+        </div>
+        <div class="summary-info">
+          <span class="summary-value" data-count="0">0</span>
+          <span class="summary-unit">%</span>
+          <span class="summary-label">エネルギーレベル</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- コミットパターン分析 -->
+    <section class="section" id="section-commits">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <i data-lucide="git-branch" class="section-icon"></i>
+          <h2 class="section-title">コミットパターン分析</h2>
+        </div>
+        <div class="section-actions">
+          <select id="commit-range" class="select-input">
+            <option value="7">過去7日</option>
+            <option value="30" selected>過去30日</option>
+            <option value="90">過去90日</option>
+          </select>
+        </div>
+      </div>
+      <div class="card-grid card-grid-commits">
+        <!-- ヒートマップ -->
+        <div class="card card-wide">
+          <div class="card-header">
+            <h3 class="card-title">コーディング活動ヒートマップ</h3>
+            <span class="card-subtitle">時間帯 × 曜日</span>
+          </div>
+          <div class="card-body">
+            <div class="heatmap-container" id="heatmap-container">
+              <canvas id="heatmap-canvas"></canvas>
+              <div class="heatmap-labels-y" id="heatmap-labels-y"></div>
+              <div class="heatmap-labels-x" id="heatmap-labels-x"></div>
+              <div class="heatmap-legend" id="heatmap-legend">
+                <span class="heatmap-legend-label">少</span>
+                <div class="heatmap-legend-colors" id="heatmap-legend-colors"></div>
+                <span class="heatmap-legend-label">多</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- ストリーク -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">コミットストリーク</h3>
+          </div>
+          <div class="card-body streak-body">
+            <div class="streak-display">
+              <div class="streak-ring" id="streak-ring">
+                <svg viewBox="0 0 120 120" class="streak-svg">
+                  <circle cx="60" cy="60" r="52" class="streak-bg" />
+                  <circle cx="60" cy="60" r="52" class="streak-progress" id="streak-progress" />
+                </svg>
+                <div class="streak-value-wrap">
+                  <span class="streak-number" id="streak-number">0</span>
+                  <span class="streak-unit">日</span>
+                </div>
+              </div>
+            </div>
+            <div class="streak-stats">
+              <div class="streak-stat">
+                <span class="streak-stat-label">最長記録</span>
+                <span class="streak-stat-value" id="streak-best">0日</span>
+              </div>
+              <div class="streak-stat">
+                <span class="streak-stat-label">今月の活動日</span>
+                <span class="streak-stat-value" id="streak-monthly">0日</span>
+              </div>
+              <div class="streak-stat">
+                <span class="streak-stat-label">平均コミット/日</span>
+                <span class="streak-stat-value" id="streak-avg">0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 平日/週末比率 -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">平日 / 週末 比率</h3>
+          </div>
+          <div class="card-body">
+            <div class="chart-container chart-sm">
+              <canvas id="chart-weekday-ratio"></canvas>
+            </div>
+            <div class="ratio-labels" id="ratio-labels"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 作業BGM分析 -->
+    <section class="section" id="section-bgm">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <i data-lucide="headphones" class="section-icon"></i>
+          <h2 class="section-title">作業BGM分析</h2>
+        </div>
+      </div>
+      <div class="card-grid card-grid-bgm">
+        <!-- ジャンル別チャート -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">ジャンル別リスニング</h3>
+          </div>
+          <div class="card-body">
+            <div class="chart-container chart-sm">
+              <canvas id="chart-genre"></canvas>
+            </div>
+          </div>
+        </div>
+        <!-- 生産性相関 -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">ジャンル × 生産性 相関</h3>
+            <span class="card-subtitle">コミット数 vs 再生時間</span>
+          </div>
+          <div class="card-body">
+            <div class="chart-container chart-sm">
+              <canvas id="chart-productivity"></canvas>
+            </div>
+          </div>
+        </div>
+        <!-- 最近の再生 -->
+        <div class="card card-wide">
+          <div class="card-header">
+            <h3 class="card-title">最近再生した曲</h3>
+          </div>
+          <div class="card-body">
+            <div class="track-list" id="track-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- エネルギー管理 -->
+    <section class="section" id="section-energy">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <i data-lucide="activity" class="section-icon"></i>
+          <h2 class="section-title">エネルギー管理</h2>
+        </div>
+      </div>
+      <div class="card-grid card-grid-energy">
+        <!-- バーンアウト予測 -->
+        <div class="card" id="burnout-card">
+          <div class="card-header">
+            <h3 class="card-title">燃え尽き予測</h3>
+          </div>
+          <div class="card-body burnout-body">
+            <div class="burnout-gauge" id="burnout-gauge">
+              <svg viewBox="0 0 200 120" class="burnout-svg">
+                <defs>
+                  <linearGradient id="burnout-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#10b981" />
+                    <stop offset="50%" style="stop-color:#f59e0b" />
+                    <stop offset="100%" style="stop-color:#ef4444" />
+                  </linearGradient>
+                </defs>
+                <path d="M 20 100 A 80 80 0 0 1 180 100" class="burnout-track" />
+                <path d="M 20 100 A 80 80 0 0 1 180 100" class="burnout-fill" id="burnout-fill" />
+                <circle cx="100" cy="100" r="5" class="burnout-needle-center" />
+                <line x1="100" y1="100" x2="100" y2="30" class="burnout-needle" id="burnout-needle" />
+              </svg>
+              <div class="burnout-value" id="burnout-value">
+                <span class="burnout-score">0</span>
+                <span class="burnout-label">リスクスコア</span>
+              </div>
+            </div>
+            <div class="burnout-alert" id="burnout-alert"></div>
+            <div class="burnout-factors" id="burnout-factors"></div>
+          </div>
+        </div>
+        <!-- エネルギートレンド -->
+        <div class="card card-wide">
+          <div class="card-header">
+            <h3 class="card-title">エネルギートレンド（過去14日）</h3>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="chart-energy-trend"></canvas>
+            </div>
+          </div>
+        </div>
+        <!-- 活動パターン -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">今日の活動タイムライン</h3>
+          </div>
+          <div class="card-body">
+            <div class="timeline" id="activity-timeline"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 週次レポート -->
+    <section class="section" id="section-report">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <i data-lucide="file-text" class="section-icon"></i>
+          <h2 class="section-title">週次レポート</h2>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-primary" id="btn-generate-report">
+            <i data-lucide="wand-2"></i>
+            <span>レポート生成</span>
+          </button>
+        </div>
+      </div>
+      <div class="card-grid">
+        <div class="card card-full">
+          <div class="card-header">
+            <h3 class="card-title">今週のサマリー</h3>
+            <div class="card-actions">
+              <button class="btn btn-ghost btn-sm" id="btn-copy-report" title="コピー" disabled>
+                <i data-lucide="clipboard-copy"></i>
+                <span>コピー</span>
+              </button>
+              <button class="btn btn-ghost btn-sm" id="btn-download-report" title="ダウンロード" disabled>
+                <i data-lucide="download"></i>
+                <span>ダウンロード</span>
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="report-placeholder" id="report-placeholder">
+              <i data-lucide="sparkles" class="report-placeholder-icon"></i>
+              <p>「レポート生成」をクリックすると、今週の活動サマリーがMarkdown形式で生成されます</p>
+            </div>
+            <div class="report-preview" id="report-preview" style="display:none;"></div>
+            <pre class="report-raw" id="report-raw" style="display:none;"></pre>
+          </div>
+          <div class="card-footer" id="report-footer" style="display:none;">
+            <button class="btn btn-ghost btn-sm" id="btn-toggle-raw">
+              <i data-lucide="code-2"></i>
+              <span>Markdown表示</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 設定モーダル -->
+  <div class="modal-overlay" id="modal-settings" style="display:none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">API設定</h3>
+        <button class="btn btn-ghost btn-sm" id="btn-close-settings">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">
+            <i data-lucide="github"></i>
+            GitHub Personal Access Token
+          </label>
+          <input type="password" class="form-input" id="input-github-token" placeholder="ghp_xxxxxxxxxxxx">
+          <span class="form-hint">Settings → Developer settings → Personal access tokens で発行</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            <i data-lucide="user"></i>
+            GitHub Username
+          </label>
+          <input type="text" class="form-input" id="input-github-username" placeholder="your-username">
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            <i data-lucide="music"></i>
+            Spotify Access Token
+          </label>
+          <input type="password" class="form-input" id="input-spotify-token" placeholder="BQDxxxxxxxx">
+          <span class="form-hint">Spotify for Developers → Web API で取得</span>
+        </div>
+        <div class="form-divider"></div>
+        <div class="form-group">
+          <label class="form-label-inline">
+            <input type="checkbox" id="input-demo-mode" checked>
+            <span>デモモードを使用する（モックデータ）</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="btn-cancel-settings">キャンセル</button>
+        <button class="btn btn-primary" id="btn-save-settings">
+          <i data-lucide="save"></i>
+          <span>保存</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- フッター -->
+  <footer class="footer">
+    <p>DevHabit Dashboard &copy; 2026 — Built with <i data-lucide="heart" style="width:14px;height:14px;display:inline;color:var(--color-accent);"></i> for developers</p>
+  </footer>
+
+  <!-- JS モジュール -->
+  <script src="js/mock-data.js"></script>
+  <script src="js/commit-analysis.js"></script>
+  <script src="js/bgm-analysis.js"></script>
+  <script src="js/energy-management.js"></script>
+  <script src="js/weekly-report.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
